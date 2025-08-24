@@ -5,54 +5,65 @@ build-backend = "setuptools.build_meta"
 
 # --- setuptools
 [tool.setuptools]
-py-modules = ["parnet"]
+#py-modules = ["parnet"]
+packages = ["parnet"]
 
 # --- project
 [project]
-version = "0.0.1"
+version = "0.5.0"
 
 name = "parnet"
-authors = [
-    { name = "Marc Horlacher", email = "marc.horlacher@gmail.com" },
-]
+authors = [{ name = "Marc Horlacher", email = "marc.horlacher@gmail.com" }]
 description = "A description of the project."
 
 readme = "README.md"
-requires-python = ">=3.8"
-# keywords = ["one", "two"]
+requires-python = ">=3.10,<3.11"
 license = { file = "LICENSE" }
 
-# Help categorize the project and make it easier for users and tools (such as PyPI and 
-# package managers) to discover, filter, and understand the project's purpose, audience, 
+# Help categorize the project and make it easier for users and tools (such as PyPI and
+# package managers) to discover, filter, and understand the project's purpose, audience,
 # and compatibility.
 classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
 ]
 
 dependencies = [
-    'click',
-    'mkdocs',
-    'mkdocstrings[python]',
-    'mkdocs-material',
-    'gin_config>=0.5.0',
-    'lightning>=2.1.2',
-    'biopython==1.83',
-    'click>=8.1.7',
-    'tensorflow>=2.6.0',
-    'tensorflow-datasets==4.9.3',
-    'torch',
-    'pandas',
-    'lightning',
-    'datasets',
+    "biopython >=1.83,<1.85",
+    "click >=8.2,<9.0",
+    "datasets >=3.6.0,<4.0.0",
+    "gin_config>=0.5.0",
+    "lightning >=2.3,<2.6",
+    "lightning-utilities >=0.14,<0.15",
+    "pybigwig >=0.3.22,<0.4",
+    "pysam >=0.23.3,<0.24",
+    "pandas >=2.0,<2.4",
+    "numpy >=1.26,<2.0",
+    "sequence-models >=1.8,<2.0",
+    "tensorflow >=2.16,<2.17",
+    "tensorflow-datasets==4.9.3",
+    "torch ==2.5.1",
+    "tqdm >=4.67.1,<5",
+    "captum >=0.7.0,<0.8",
 ]
 
+
+[project.optional-dependencies]
+
+gpu = ["tensorflow[and-cuda] >=2.16,<2.17"]
+
+dev = [
+    "mkdocstrings-python >=1.16,<2.0",
+    "mkdocs >=1.6,<2.0",
+    "mkdocs-material >=9.6,<10.0",
+    "mypy >=1.11,<2.0",
+    "pre-commit >=4.0,<5.0",
+    "pytest >=8.4,<9",
+    "pytest-cov >=6.0,<7.0",
+    "ruff >=0.11,<1.0",
+]
 
 [project.scripts]
 parnet = "parnet.__main__:main"
