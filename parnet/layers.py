@@ -210,15 +210,6 @@ class MixCoeffPenalty(nn.Module):
 
 
 
-@gin.configurable()
-class NewMixCoeffPenalty(nn.Module):
-    def __init__(self, factor=1.0) -> None:
-        super().__init__()
-        self.factor = factor
-
-    def __call__(self, track_target, track_control, mix_coeff):
-        return mix_coeff * self.factor
-
 
 @gin.configurable()
 class AdditiveMix(nn.Module):
@@ -307,6 +298,16 @@ class AdditiveMix(nn.Module):
 
 
 @gin.configurable()
+class NewMixCoeffPenalty(nn.Module):
+    def __init__(self, factor=1.0) -> None:
+        super().__init__()
+        self.factor = factor
+
+    def __call__(self, track_target, track_control, mix_coeff):
+        return mix_coeff * self.factor
+
+
+@gin.configurable()
 class NewAdditiveMix(nn.Module):
     def __init__(
         self,
@@ -360,5 +361,3 @@ class NewAdditiveMix(nn.Module):
             return_dict['penalty_loss'] = self.penalty(target_logprob, control_logprob, mix_coeff)
 
         return return_dict
-
-
