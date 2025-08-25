@@ -141,8 +141,6 @@ class SequenceLinearMix(nn.Module):
         return x
 
 
-
-
 @gin.configurable()
 class MixCoeffMLP(nn.Module):
     """2-layer MLP that takes a feature map as input and outputs a mixing coefficient for each task."""
@@ -170,6 +168,31 @@ class MixCoeffMLP(nn.Module):
 
 
 @gin.configurable()
+class NewMixCoeffMLP(nn.Module):
+    def __init__(self, num_tasks, units=128, act=nn.ReLU()) -> None:
+        super().__init__()
+
+        self.dense1 = nn.LazyLinear(units)
+        self.act = act
+        self.dense2 = nn.LazyLinear(num_tasks)
+
+    def forward(self, x):
+        # x should have shape [batch, hidden_dim, length]
+
+        x = x.mean(-1)  # --> [batch, hidden_dim]
+        logging.debug(f'x (pooled): {x.shape}')
+
+        x = self.dense1(x)  # --> [batch, units]
+        x = self.act(x)
+        logging.debug(f'self.dense(x): {x.shape}')
+
+        x = self.dense2(x)  # --> [batch, num_tasks]
+
+        return F.sigmoid(x)
+
+
+
+@gin.configurable()
 class MixCoeffPenalty(nn.Module):
     """Simple mixing coefficient penalty that scales the mixing coefficient by a factor.
 
@@ -183,6 +206,17 @@ class MixCoeffPenalty(nn.Module):
 
     def __call__(self, track_target, track_control, mix_coeff):
         # (B, num_tasks) -> (B, num_tasks)
+        return mix_coeff * self.factor
+
+
+
+@gin.configurable()
+class NewMixCoeffPenalty(nn.Module):
+    def __init__(self, factor=1.0) -> None:
+        super().__init__()
+        self.factor = factor
+
+    def __call__(self, track_target, track_control, mix_coeff):
         return mix_coeff * self.factor
 
 
@@ -270,16 +304,6 @@ class AdditiveMix(nn.Module):
             return_dict['penalty_loss'] = self.penalty(target_logprob, control_logprob, mix_coeff)
 
         return return_dict
-
-
-@gin.configurable()
-class NewMixCoeffPenalty(nn.Module):
-    def __init__(self, factor=1.0) -> None:
-        super().__init__()
-        self.factor = factor
-
-    def __call__(self, track_target, track_control, mix_coeff):
-        return mix_coeff * self.factor
 
 
 @gin.configurable()
