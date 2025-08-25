@@ -1,5 +1,5 @@
-import sys
 import logging
+import sys
 
 import gin
 import torch
@@ -104,6 +104,43 @@ class LinearProjectionHead(nn.Module):
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         # (B, hidden_dim, L) --> (B, num_tasks, L)
         return self.pointwise(inputs)
+
+
+@gin.configurable()
+class LinearProjection(nn.Module):
+    """Performs a linear projection of the input to the specified number of output channels.
+
+    To be used as an upsampling/downsampling layer.
+    """
+
+    def __init__(self, out_features=128) -> None:
+        super().__init__()
+        self.pointwise_conv = nn.LazyConv1d(out_features, kernel_size=1, bias=False, padding='same')
+
+    def forward(self, x):
+        return self.pointwise_conv(x)
+
+
+@gin.configurable()
+class SequenceLinearMix(nn.Module):
+    def __init__(self, num_tasks):
+        super().__init__()
+
+        self.gloabel_avg_pool = nn.AdaptiveAvgPool1d(1)
+        self.dense = nn.LazyLinear(num_tasks)
+
+    def forward(self, inputs):
+        # inputs should have shape [batch, hidden_dim, length]
+
+        x = torch.squeeze(self.gloabel_avg_pool(inputs))  # --> [batch, hidden_dim]
+        logging.debug(f'x=torch.squeeze(self.gloabel_avg_pool(inputs)): {x.shape}')
+
+        x = self.dense(x)  # --> [batch, num_tasks]
+        logging.debug(f'self.dense(x): {x.shape}')
+
+        return x
+
+
 
 
 @gin.configurable()
@@ -233,3 +270,71 @@ class AdditiveMix(nn.Module):
             return_dict['penalty_loss'] = self.penalty(target_logprob, control_logprob, mix_coeff)
 
         return return_dict
+
+
+@gin.configurable()
+class NewMixCoeffPenalty(nn.Module):
+    def __init__(self, factor=1.0) -> None:
+        super().__init__()
+        self.factor = factor
+
+    def __call__(self, track_target, track_control, mix_coeff):
+        return mix_coeff * self.factor
+
+
+@gin.configurable()
+class NewAdditiveMix(nn.Module):
+    def __init__(
+        self,
+        num_tasks,
+        head_layer=LinearProjection,
+        mix_coeff_layer=NewMixCoeffMLP,
+        penalty_layer=None,
+        control_nograd=False,
+    ):
+        super().__init__()
+
+        self.head_target = head_layer(num_tasks)
+        self.head_control = head_layer(num_tasks)
+        self.mix_coeff = mix_coeff_layer(num_tasks)
+        self.penalty = penalty_layer
+        self.control_nograd = control_nograd
+
+    def forward(self, inputs, **kwargs):
+        # inputs should have shape [batch, hidden_dim, length]
+
+        # project input feature map to logits for target and control --> [batch, num_tasks, length]
+        target_logit = self.head_target(inputs)
+        control_logit = self.head_control(inputs)
+
+        # compute mixing coefficients --> [batch, num_tasks]
+        mix_coeff = self.mix_coeff(inputs)
+        mix_coeff = torch.unsqueeze(mix_coeff, dim=-1)
+
+        logging.debug(f'mix_coeff.shape: {mix_coeff.shape}')
+
+        # additive mixing of target and control tracks with control track weigthed
+        # by the mixing coefficient --> [batch, num_tasks, length]
+        target_logprob = target_logit - torch.logsumexp(target_logit, dim=-1, keepdim=True)
+        control_logprob = control_logit - torch.logsumexp(control_logit, dim=-1, keepdim=True)
+
+        # use logsumexp trick to avoid numerical instability
+        max_logprob = torch.maximum(target_logprob, control_logprob)
+        total_logprob = max_logprob + torch.log(
+            mix_coeff * torch.exp(target_logprob - max_logprob)
+            + (1 - mix_coeff) * torch.exp(control_logprob - max_logprob)
+        )
+
+        return_dict = {
+            'target': target_logprob,
+            'control': control_logprob,
+            'total': total_logprob,
+            'mix_coeff': mix_coeff.squeeze(-1),  # TODO: Add this.
+        }
+
+        if self.penalty is not None:
+            return_dict['penalty_loss'] = self.penalty(target_logprob, control_logprob, mix_coeff)
+
+        return return_dict
+
+
