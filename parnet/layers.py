@@ -226,6 +226,9 @@ class AdditiveMix(nn.Module):
         head_layer=LinearProjectionHead,
         mix_coeff_layer=MixCoeffMLP,
         penalty_layer=None,
+        control_nograd=False,
+        use_maximum_target_control_logprob=False,
+
     ):
         """Initializes AdditiveMix layer.
 
@@ -240,6 +243,8 @@ class AdditiveMix(nn.Module):
         self.head_control = head_layer(num_tasks)
         self.mix_coeff = mix_coeff_layer(num_tasks)
         self.penalty = penalty_layer() if penalty_layer is not None else None
+        self.control_nograd = control_nograd
+        self.use_maximum_target_control_logprob = use_maximum_target_control_logprob
 
     def forward(self, inputs, **kwargs):
         # inputs: (B, hidden_dim, L)
@@ -261,12 +266,24 @@ class AdditiveMix(nn.Module):
         target_logprob = target_logit - torch.logsumexp(target_logit, dim=-1, keepdim=True)
         control_logprob = control_logit - torch.logsumexp(control_logit, dim=-1, keepdim=True)
 
-        max_logprob = torch.maximum(target_logprob, control_logprob)
-        total_logprob = max_logprob + torch.log(
-            mix_coeff * torch.exp(target_logprob - max_logprob)
-            + (1 - mix_coeff) * torch.exp(control_logprob - max_logprob)
-            + 1e-10  # small constant to avoid numerical issues
-        )
+        if self.use_maximum_target_control_logprob:
+            max_logprob = torch.maximum(target_logprob, control_logprob)
+            total_logprob = max_logprob + torch.log(
+                mix_coeff * torch.exp(target_logprob - max_logprob)
+                + (1 - mix_coeff) * torch.exp(control_logprob - max_logprob)
+                + 1e-10  # small constant to avoid numerical issues
+            )
+        else:
+            total_logprob = torch.logsumexp(
+                torch.stack(
+                    [
+                        mix_coeff + target_logprob,
+                        (control_logprob.detach() if self.control_nograd else control_logprob),
+                    ],
+                    dim=0,
+                ),
+                dim=0,
+            )
 
         # check for NaN/Inf in total_logprob
         if torch.isnan(total_logprob).any() or torch.isinf(total_logprob).any():
