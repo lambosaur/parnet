@@ -45,7 +45,7 @@ dependencies = [
     "sequence-models >=1.8,<2.0",
     "tensorflow >=2.16,<2.17",
     "tensorflow-datasets==4.9.3",
-    "torch ==2.5.1",
+    "torch >=2.5,<2.6",
     "tqdm >=4.67.1,<5",
     "captum >=0.7.0,<0.8",
 ]
@@ -53,7 +53,12 @@ dependencies = [
 
 [project.optional-dependencies]
 
-gpu = ["tensorflow[and-cuda] >=2.16,<2.17"]
+gpu = [
+    "tensorflow[and-cuda] >=2.16,<2.17",
+    "torch >=2.5,<2.6",
+]
+
+
 
 dev = [
     "pre-commit >=4.0,<5.0",
