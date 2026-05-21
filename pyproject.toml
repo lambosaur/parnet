@@ -33,9 +33,9 @@ classifiers = [
 dependencies = [
     "biopython >=1.83,<1.85",
     "click >=8.2,<9.0",
-    "datasets >=3.6.0,<4.0.0",
+    "datasets >=3.6.0",
     "gin_config>=0.5.0",
-    "lightning >=2.3,<2.6",
+    "lightning >=2.3",
     "lightning-utilities >=0.14,<0.15",
     "pyarrow >=14.0,<21.0",
     "pybigwig >=0.3.22,<0.4",
@@ -45,7 +45,7 @@ dependencies = [
     "sequence-models >=1.8,<2.0",
     "tensorflow >=2.16,<2.17",
     "tensorflow-datasets==4.9.3",
-    "torch >=2.5,<2.6",
+    "torch >=2.5",
     "tqdm >=4.67.1,<5",
     "captum >=0.7.0,<0.8",
 ]
@@ -55,7 +55,7 @@ dependencies = [
 
 gpu = [
     "tensorflow[and-cuda] >=2.16,<2.17",
-    "torch >=2.5,<2.6",
+    "torch >=2.5",
 ]
 
 
